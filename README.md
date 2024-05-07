@@ -16,6 +16,7 @@ TODO: Add contents
 <!---
 TODO: Finish program
 -->
+07-09, 09:00–12:00 (Europe/Amsterdam)
 | Time | Description |
 | ---- | ----------- |
 | 09:00 | Introduction |
