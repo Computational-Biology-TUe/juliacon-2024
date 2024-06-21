@@ -11,6 +11,11 @@ Computational models offer a valuable tool for understanding the dynamic interac
 <!---
 TODO: Add contents
 -->
+During the workshop, we will address the following elements of dynamic modelling in (systems) biology:
+1. Implementation and simulation of (biological) dynamic models using `DifferentialEquations.jl`
+2. Sensitivity analysis
+3. Parameter identifiability analysis with profile likelihood
+4. ...
 
 ## Program
 <!---
