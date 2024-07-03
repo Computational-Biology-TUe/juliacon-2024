@@ -40,3 +40,4 @@ During the workshop, you will be implementing and working with the Eindhoven Dia
 
 ## Additional Information
 * [SBML of the EDES Model](https://www.ebi.ac.uk/biomodels/MODEL2403070001)
+* PREDICT data retrieved from Berry, S.E., Valdes, A.M., Drew, D.A. et al. Human postprandial responses to food and potential for precision nutrition. _Nat Med_ **26**, 964–973 (2020). (https://doi.org/10.1038/s41591-020-0934-0)
