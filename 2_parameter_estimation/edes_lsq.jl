@@ -5,8 +5,9 @@ using OrdinaryDiffEq
 using CairoMakie
 using Statistics
 using QuasiMonteCarlo
-using Optimization, OptimizationOptimJL
+using SimpleNonlinearSolve
 using Random
+using SciMLBase: NonlinearSolution
 Random.seed!(5234)
 # using BenchmarkTools
 
@@ -173,93 +174,55 @@ function loss(θ, p)
   # solve the problem
   pred = solve(problem, Tsit5(), p=p, saveat=data_timepoints, save_idxs=[2, 3])
   sol = Array(pred)
-  sum(abs2, (sol .- [glucose_data'; insulin_data']) ./ [glucose_std'; insulin_std']), solve(problem, Tsit5(), p=p, saveat=1, save_idxs=[2, 3])
+  vec(reduce(hcat, (sol .- [glucose_data'; insulin_data']) ./ [glucose_std'; insulin_std']))
 end
 
 constants = [k2, k3, k4, k7, k9, k10, tau_i, tau_d, beta, Gren, EGPb, Km, f, Vg, c1, sigma, Dmeal, bw, mean_data[1,1], mean_data[2,1]]
 
 # compute initial guess
 initial_guess = QuasiMonteCarlo.sample(
-  10_000, [0., 0., 0., 0.], [1., 0.5, 20., 20.], LatinHypercubeSample()
+  100_000, [0., 0., 0., 0.], [1., 0.5, 20., 20.], LatinHypercubeSample()
 )
 
 # compute the loss for the initial guess
-initial_loss_values = [loss(guess, (
+initial_loss_values = [sum(abs2, loss(guess, (
   prob, mean_data[1,:], std_data[1,:], mean_data[2,:], std_data[2,:], data_timepoints, constants
-))[1] for guess in eachcol(initial_guess)]
+))) for guess in eachcol(initial_guess)]
 
 # sort the initial guess by loss
-sorted_guesses = initial_guess[:,sortperm(initial_loss_values)[50]]
+sorted_guesses = initial_guess[:,sortperm(initial_loss_values)[1:20]]
 
-optfunc = OptimizationFunction(loss, Optimization.AutoForwardDiff())
-optprob = OptimizationProblem(optfunc, sorted_guesses, (
-  prob, mean_data[1,:], std_data[1,:], mean_data[2,:], std_data[2,:], data_timepoints, constants
-),lb = [0., 0., 0., 0.], ub = [1., 0.5, 20., 20.])
-
-
-function create_callback(predictions)
-
-  callback = function (state, l, pred)
-    push!(predictions, Array(pred))
-    false
+results = NonlinearSolution[]
+for guess in eachcol(sorted_guesses)
+  try
+    res = solve(NonlinearLeastSquaresProblem(loss, vec(guess), (
+      prob, mean_data[1,:], std_data[1,:], mean_data[2,:], std_data[2,:], data_timepoints, constants
+    )), SimpleGaussNewton(); maxiters=100)
+    push!(results, res)
+  catch
+    continue
   end
-
-  callback
 end
 
-# starting point
-p_start = construct_parameters(sorted_guesses, constants)
+results
 
-# solve the problem
-pred_start = Array(solve(prob, Tsit5(), p=p_start, saveat=1, save_idxs=[2, 3]))
+# get the estimated parameters
+estimated_parameters = construct_parameters(results[1].u, constants)
 
-# initialize the predictions
-predictions_LBFGS = Matrix{Float64}[pred_start]
-predictions_BFGS = Matrix{Float64}[pred_start]
-predictions_NelderMead = Matrix{Float64}[pred_start]
-predictions_ParticleSwarm = Matrix{Float64}[pred_start]
-predictions = [
-  predictions_NelderMead,
-  predictions_ParticleSwarm,
-  predictions_BFGS,
-  predictions_LBFGS
-]
+# solve the problem with the estimated parameters
+estimated_solution = solve(prob, Tsit5(), p=estimated_parameters, saveat=data_timepoints, save_idxs=[2, 3])
 
-# select optimization algorithms
-optalgs = [
-  NelderMead(),
-  ParticleSwarm(),
-  BFGS(),
-  LBFGS()
-]
+# visualize the estimated solution
+# visualize the data
+solution_figure = let f = Figure(size=(500,200))
+  ax_1 = Axis(f[1,1], xlabel="Time [min]", ylabel="Concentration [mM]", title="Glucose")
+  scatter!(ax_1, data_timepoints, mean_data[1,:], label="Gpl data", color=Makie.wong_colors()[1], markersize=25, marker='∘')
+  errorbars!(ax_1, data_timepoints, mean_data[1,:], std_data[1,:], color=Makie.wong_colors()[1], whiskerwidth=8)
+  ax_2 = Axis(f[1,2], xlabel="Time [min]", ylabel="Concentration [mU/L]", title="Insulin")
+  scatter!(ax_2, data_timepoints, mean_data[2,:], label="Ipl data", color=Makie.wong_colors()[2], markersize=25, marker='∘')
+  errorbars!(ax_2, data_timepoints, mean_data[2,:], std_data[2,:], color=Makie.wong_colors()[2], whiskerwidth=8)
 
-optsols = [solve(optprob, alg, callback=create_callback(preds)) for (alg, preds) in zip(optalgs, predictions)]
-
-step = Observable(1)
-predictions[1][1]
-xs = 0:1:240
-ys_1 = [@lift(pred[$step <= length(pred) ? $step : length(pred)][1,:]) for pred in predictions]
-ys_2 = [@lift(pred[$step <= length(pred) ? $step : length(pred)][2,:]) for pred in predictions]
-
-
-optim_progress_fig = let f = Figure(size=(600,300))
-  ax_1 = Axis(f[1,1], xlabel="Time [min]", ylabel="Concentration [mM]", title=@lift "Glucose (step: $($step))"   )
-  scatter!(ax_1, data_timepoints, mean_data[1,:], label="Data", color=:black, markersize=25, marker='∘')
-  errorbars!(ax_1, data_timepoints, mean_data[1,:], std_data[1,:], color=:black, whiskerwidth=8, label="Data")
-  ax_2 = Axis(f[1,2], xlabel="Time [min]", ylabel="Concentration [mU/L]", title=@lift "Insulin (step: $($step))")
-  scatter!(ax_2, data_timepoints, mean_data[2,:], label="Ipl data", color=:black, markersize=25, marker='∘')
-  errorbars!(ax_2, data_timepoints, mean_data[2,:], std_data[2,:], color=:black, whiskerwidth=8)
-
-  for (i, algname) in enumerate(["Nelder-Mead", "Particle Swarm", "BFGS", "LBFGS"])
-    lines!(ax_1, xs, ys_1[i], color=Makie.wong_colors()[2+i], linewidth=1, label=algname)
-    lines!(ax_2, xs, ys_2[i], color=Makie.wong_colors()[2+i], linewidth=1)
-  end
-  f[2,1:2] = Legend(f[2,1:2], ax_1, title="Algorithm", orientation=:horizontal, merge=true)
+  lines!(ax_1, estimated_solution.t, estimated_solution[1,:], color=Makie.wong_colors()[1], label="Gpl estimated")
+  lines!(ax_2, estimated_solution.t, estimated_solution[2,:], color=Makie.wong_colors()[2], label="Ipl estimated")
   f
-end
-
-# record the optimization progress
-final_step = 200
-record(optim_progress_fig, "2_parameter_estimation/Edes_optimization.gif", 1:1:final_step, framerate=10) do t
-  step[] = t
 end

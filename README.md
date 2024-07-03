@@ -29,7 +29,7 @@ The workshop starts with a short introductory presentation, outlining the genera
 | 09:00 | Introduction |
 | 09:10 - 09:45 | Implementing the EDES Model, Simulation and visualisation |
 | 09:45 - 10:00 | Short Break |
-| 10:00 - 10:45 | Parameter Estimation, Personalisation |
+| 10:00 - 10:45 | Parameter Estimation |
 | 10:45 - 11:00 | Short Break |
 | 11:00 - 11:30 | Identifiability and profile likelihood |
 | 11:30 - 11:45 | Hybrid Models, SciML |
