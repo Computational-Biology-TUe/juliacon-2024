@@ -26,3 +26,5 @@ Manifest.toml
 # VS Code settings
 .vscode
 
+# DS Store
+*DS_Store*

@@ -187,18 +187,18 @@ function plot_individual(optsols, glucose, insulin, t_glucose, t_insulin, i)
   p_opt = construct_parameters(optsol.u, constants)
   simulation_opt = solve(prob, Tsit5(), p=p_opt, saveat=0.1, save_idxs=[2, 3])
 
-  f = Figure(size=(600,300))
+  f = Figure(size=(600,300), backgroundcolor=:transparent)
     ax_glucose = Axis(
     f[1, 1],
       xlabel = "Time [min]",
       ylabel = "Glucose [mg/dL]",
-      title = "Optimized EDES (Glucose)"
+      title = "Optimized EDES (Glucose)", backgroundcolor=:transparent
   )
   ax_insulin = Axis(
     f[1, 2],
       xlabel = "Time [min]",
       ylabel = "Insulin [mU/L]",
-      title = "Optimized EDES (Insulin)"
+      title = "Optimized EDES (Insulin)", backgroundcolor=:transparent
   )
 
   lines!(ax_glucose, simulation_opt.t, simulation_opt[1,:], color=Makie.wong_colors()[1])
@@ -212,5 +212,5 @@ end
 bad_fit = plot_individual(individual_optsols, glucose, insulin, t_glucose, t_insulin, 6)
 save("2_parameter_estimation/figures/bad_fit.png", bad_fit, px_per_unit=2)
 
-good_fit = plot_individual(individual_optsols, glucose, insulin, t_glucose, t_insulin, errors[1])
+good_fit = plot_individual(individual_optsols, glucose, insulin, t_glucose, t_insulin, 1)
 save("2_parameter_estimation/figures/good_fit.png", good_fit, px_per_unit=2)
