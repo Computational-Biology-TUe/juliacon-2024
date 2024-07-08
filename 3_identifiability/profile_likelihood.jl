@@ -1,4 +1,4 @@
-# Implementation of the EDeS model in Julia
+# Implementation of the PLA for the EDES model.
 
 using StaticArrays
 using OrdinaryDiffEq
