@@ -180,3 +180,5 @@ fig_opt = let f = Figure(size=(600,300))
 
   f
 end
+
+optsol.u
